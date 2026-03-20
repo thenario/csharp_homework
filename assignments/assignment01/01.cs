@@ -1,7 +1,4 @@
-﻿using System;
-using System.Runtime.CompilerServices;
- 
-namespace theFirstHomework
+﻿namespace theFirstHomework
 {
     class entraceOfProg
     {
