@@ -49,3 +49,27 @@ public partial class MainWindow : Window
         }
     }
 }
+/*
+
+Algorithm CoinChange(coins, n, y):
+    // coins: 硬币面值数组 [v1, v2, ..., vn]
+    // n: 硬币种类数
+    // y: 目标总价值
+    
+    // 创建并初始化 DP 数组
+    Create array dp[y + 1]
+    dp[0] = 0
+    For i From 1 To y Do:
+        dp[i] = Infinity // 初始化为无穷大
+    // 动态规划计算
+    For i From 1 To y Do:// 遍历每种目标金额
+        For j From 0 To n-1 Do:// 遍历每种硬币面值
+            If i >= coins[j] Then:
+                // 如果当前硬币能用，更新最小值
+                dp[i] = Min(dp[i], dp[i - coins[j]] + 1)
+    // 3. 返回结果
+    Return dp[y]
+
+时间复杂度:O(n \times y)
+空间复杂度:O(y)
+*/
