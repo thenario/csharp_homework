@@ -1,0 +1,5 @@
+Z:\csharp\Crawler\obj\Debug\net8.0-windows\Crawler.csproj.AssemblyReference.cache
+Z:\csharp\Crawler\obj\Debug\net8.0-windows\Crawler.GeneratedMSBuildEditorConfig.editorconfig
+Z:\csharp\Crawler\obj\Debug\net8.0-windows\Crawler.AssemblyInfoInputs.cache
+Z:\csharp\Crawler\obj\Debug\net8.0-windows\Crawler.AssemblyInfo.cs
+Z:\csharp\Crawler\obj\Debug\net8.0-windows\Crawler.csproj.CoreCompileInputs.cache
