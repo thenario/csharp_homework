@@ -1,6 +1,6 @@
 using System;
 
-namespace entity.file;
+namespace Crawler.Entities;
 
 public class FileEntity
 {
