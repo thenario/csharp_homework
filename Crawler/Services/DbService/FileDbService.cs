@@ -59,4 +59,25 @@ public class FileDbService
         }
         return list;
     }
+
+    public void SaveFile(FileEntity file)
+    {
+        using var connection = new SqliteConnection(_connectionString);
+        connection.Open();
+        var command = connection.CreateCommand();
+        command.CommandText = """
+        INSERT INTO Files (Title, Url, LocalPath, Type, OriginalName, FileSize, DownloadTime)
+        VALUES ($title, $url, $path, $type, $name, $size, $time)
+    """;
+
+        command.Parameters.AddWithValue("$title", file.Title ?? "");
+        command.Parameters.AddWithValue("$url", file.Url ?? "");
+        command.Parameters.AddWithValue("$path", file.LocalPath ?? "");
+        command.Parameters.AddWithValue("$type", file.Type ?? "");
+        command.Parameters.AddWithValue("$name", file.OriginalName ?? "");
+        command.Parameters.AddWithValue("$size", file.FileSize ?? "");
+        command.Parameters.AddWithValue("$time", file.DownloadTime);
+
+        command.ExecuteNonQuery();
+    }
 }
