@@ -2,18 +2,18 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Windows.Forms;
+using AntdUI;
 using Crawler.Entities;
 using Crawler.Services.DbService;
-using Crawler.Router;
 
 namespace Crawler.Views;
 
-public class MyResources : UserControl
+public class MyResources : UserContrl
 {
     private readonly FileDbService _dbService = new();
-    private FlowLayoutPanel _listContainer;
-    private Label _lblEmpty;
-    private Button _btnLoadMore;
+    private AntdUI.In_List _listContainer;
+    private AntdUI.Empty _emptyView;
+    private AntdUI.Button _btnLoadMore;
     
     private int _currentPage = 1;
     private const int PageSize = 10;
@@ -21,70 +21,54 @@ public class MyResources : UserControl
     public MyResources()
     {
         this.Dock = DockStyle.Fill;
-        this.BackColor = Color.FromArgb(245, 245, 245);
     }
 
     public void InitUi()
     {
         this.Controls.Clear();
 
-        var navPanel = new Panel {
+        var header = new AntdUI.PageHeader {
+            Text = "我的资源列表",
+            SubText = "管理已下载的音视频与文本资源",
             Dock = DockStyle.Top,
-            Height = 60,
-            BackColor = Color.White,
-            Padding = new Padding(10)
+            Height = 70,
+            Padding = new Padding(20, 10, 20, 10),
+            Divider = true
         };
-
-        var btnBack = new Button {
-            Text = "← 返回首页",
-            Location = new Point(15, 15),
-            Size = new Size(100, 30),
-            FlatStyle = FlatStyle.Flat,
-            Font = new Font("微软雅黑", 9),
-            Cursor = Cursors.Hand
+        var btnBack = new AntdUI.Button {
+            Text = "返回",
+            Type = TType.Default,
+            Icon = TIcon.ArrowLeftOutlined,
+            Size = TSize.Small
         };
         btnBack.Click += (s, e) => Router.Router.Instance.GoTo("home");
+        header.Extra = btnBack;
 
-        var lblTitle = new Label {
-            Text = "我的资源列表",
-            Font = new Font("微软雅黑", 14, FontStyle.Bold),
-            Location = new Point(130, 16),
-            AutoSize = true
-        };
-
-        navPanel.Controls.Add(btnBack);
-        navPanel.Controls.Add(lblTitle);
-
-        _btnLoadMore = new Button {
-            Text = "点击加载更多...",
+        _btnLoadMore = new AntdUI.Button {
+            Text = "加载更多",
             Dock = DockStyle.Bottom,
             Height = 50,
-            FlatStyle = FlatStyle.Flat,
-            BackColor = Color.White,
-            Font = new Font("微软雅黑", 10),
+            Type = TType.Ghost,
             Visible = false
         };
         _btnLoadMore.Click += (s, e) => LoadData();
 
-        _lblEmpty = new Label {
-            Text = "📁 暂无数据记录\n去爬取页面看看吧！",
-            Font = new Font("微软雅黑", 12),
-            ForeColor = Color.Gray,
-            TextAlign = ContentAlignment.MiddleCenter,
+        _emptyView = new AntdUI.Empty {
+            Text = "暂无数据记录",
+            Description = "去爬取页面看看吧！",
             Dock = DockStyle.Fill,
             Visible = false
         };
-        _listContainer = new FlowLayoutPanel {
+
+        _listContainer = new AntdUI.In_List {
             Dock = DockStyle.Fill,
             AutoScroll = true,
-            FlowDirection = FlowDirection.TopDown,
-            WrapContents = false,
-            Padding = new Padding(20, 10, 20, 10)
+            Padding = new Padding(20)
         };
 
         this.Controls.Add(_listContainer);
-        this.Controls.Add(_lblEmpty);
-        this.Controls.Add(navPanel);
+        this.Controls.Add(_emptyView);
+        this.Controls.Add(header);
         this.Controls.Add(_btnLoadMore);
 
         LoadData();
@@ -98,13 +82,13 @@ public class MyResources : UserControl
 
             if (_currentPage == 1 && (files == null || files.Count == 0))
             {
-                _lblEmpty.Visible = true;
+                _emptyView.Visible = true;
                 _listContainer.Visible = false;
                 _btnLoadMore.Visible = false;
                 return;
             }
 
-            _lblEmpty.Visible = false;
+            _emptyView.Visible = false;
             _listContainer.Visible = true;
 
             foreach (var file in files)
@@ -117,56 +101,55 @@ public class MyResources : UserControl
         }
         catch (Exception ex)
         {
-            MessageBox.Show($"加载数据失败: {ex.Message}");
+            AntdUI.Message.error(this, $"加载失败: {ex.Message}");
         }
     }
 
     private Control CreateFileItem(FileEntity file)
     {
-        var itemPanel = new Panel {
-            Size = new Size(_listContainer.Width - 60, 90),
-            BackColor = Color.White,
-            Margin = new Padding(0, 0, 0, 10),
-            Padding = new Padding(15)
-        };
-
-        var lblName = new Label {
+        var card = new AntdUI.Card {
+            Size = new Size(0, 100),
+            Dock = DockStyle.Top,
+            Margin = new Padding(0, 0, 0, 12),
+            Radius = 8, // 圆角
             Text = file.Title ?? "未知文件名",
-            Font = new Font("微软雅黑", 11, FontStyle.Bold),
-            Location = new Point(15, 15),
-            Width = 500,
-            AutoEllipsis = true
         };
 
-        var lblDetail = new Label {
-            Text = $"类型: {file.Type}  |  大小: {file.FileSize}  |  时间: {file.DownloadTime:yyyy-MM-dd HH:mm}",
+        var tagType = new AntdUI.Tag {
+            Text = file.Type,
+            Type = file.Type == "Video" ? TType.Primary : TType.Success,
+            Location = new Point(15, 45)
+        };
+
+        var lblInfo = new AntdUI.Label {
+            Text = $"大小: {file.FileSize}  |  时间: {file.DownloadTime:yyyy-MM-dd}",
             ForeColor = Color.Gray,
             Font = new Font("微软雅黑", 9),
-            Location = new Point(15, 45),
+            Location = new Point(90, 48),
             AutoSize = true
         };
 
-        var btnOpen = new Button {
+        var btnOpen = new AntdUI.Button {
             Text = "打开位置",
-            Size = new Size(90, 35),
-            Location = new Point(itemPanel.Width - 110, 25),
+            Type = TType.Primary,
+            Ghost = true,
+            Location = new Point(card.Width - 110, 30),
             Anchor = AnchorStyles.Right,
-            FlatStyle = FlatStyle.Flat,
-            Cursor = Cursors.Hand
+            Size = new Size(90, 32)
         };
-        
+
         btnOpen.Click += (s, e) => {
             if (System.IO.File.Exists(file.LocalPath)) {
                 System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{file.LocalPath}\"");
             } else {
-                MessageBox.Show("文件路径不存在！");
+                AntdUI.Message.warn(this, "文件已被移动或删除");
             }
         };
 
-        itemPanel.Controls.Add(lblName);
-        itemPanel.Controls.Add(lblDetail);
-        itemPanel.Controls.Add(btnOpen);
+        card.Controls.Add(tagType);
+        card.Controls.Add(lblInfo);
+        card.Controls.Add(btnOpen);
 
-        return itemPanel;
+        return card;
     }
 }

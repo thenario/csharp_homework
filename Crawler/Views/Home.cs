@@ -1,6 +1,7 @@
 using System;
 using System.Windows.Forms;
 using System.Drawing;
+using AntdUI;
 using Crawler.Router;
 
 namespace Crawler.Views;
@@ -17,52 +18,51 @@ public class Home : UserControl
     {
         this.Controls.Clear();
 
-        var layout = new TableLayoutPanel
-        {
+        var stackLayout = new AntdUI.StackPanel {
             Dock = DockStyle.Fill,
-            ColumnCount = 1,
-            RowCount = 4,
+            Vertical = true,
+            Center = true,
+            Gap = 20,
+            Padding = new Padding(0, 0, 0, 50) 
         };
 
-        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 40F));
-        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 20F));
-        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 20F));
-        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 20F));
 
-        var lblTitle = new Label
-        {
-            Text = "爬虫系统",
-            Font = new Font("Microsoft YaHei", 24, FontStyle.Bold),
+        var lblTitle = new AntdUI.Label {
+            Text = "资源爬虫系统",
+            Font = new Font("Microsoft YaHei", 28, FontStyle.Bold),
             TextAlign = ContentAlignment.MiddleCenter,
-            Dock = DockStyle.Fill,
+            Size = new Size(400, 100),
+            Margin = new Padding(0, 0, 0, 30)
         };
 
-        var btnMyResources = CreateButton("我的资源");
-        var btnStartCrawl = CreateButton("开始爬取");
-        var btnExit = CreateButton("退出程序");
+        var btnMyResources = CreateAntdButton("我的资源", TType.Primary, TIcon.FolderOpenOutlined);
+        var btnStartCrawl = CreateAntdButton("开始爬取", TType.Success, TIcon.CloudDownloadOutlined);
+        var btnExit = CreateAntdButton("退出程序", TType.Error, TIcon.PoweroffOutlined);
 
         btnMyResources.Click += (s, e) => Router.Router.Instance.GoTo("resources");
         btnStartCrawl.Click += (s, e) => Router.Router.Instance.GoTo("crawl");
         btnExit.Click += (s, e) => Application.Exit();
 
-        layout.Controls.Add(lblTitle, 0, 0);
-        layout.Controls.Add(btnMyResources, 0, 1);
-        layout.Controls.Add(btnStartCrawl, 0, 2);
-        layout.Controls.Add(btnExit, 0, 3);
+        stackLayout.Controls.Add(lblTitle);
+        stackLayout.Controls.Add(btnMyResources);
+        stackLayout.Controls.Add(btnStartCrawl);
+        stackLayout.Controls.Add(btnExit);
 
-        this.Controls.Add(layout);
+        this.Controls.Add(stackLayout);
     }
-
-    private Button CreateButton(string text)
+    private AntdUI.Button CreateAntdButton(string text, TType type, string icon)
     {
-        return new Button
+        return new AntdUI.Button
         {
             Text = text,
-            Size = new Size(220, 50),
-            Anchor = AnchorStyles.None,
-            FlatStyle = FlatStyle.Flat,
+            Type = type,
+            Icon = icon,
+            Size = new Size(240, 55),
             Font = new Font("Microsoft YaHei", 12),
-            Cursor = Cursors.Hand
+            Radius = 10,
+            Ghost = false,
+            Cursor = Cursors.Hand,
+            Margin = new Padding(0, 5, 0, 5)
         };
     }
 }

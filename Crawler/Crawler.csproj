@@ -9,6 +9,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="AntdUI" Version="2.3.11" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.7" />
     <content Include="Tools.yt-dlp.exe">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
