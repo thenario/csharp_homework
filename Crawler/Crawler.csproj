@@ -10,14 +10,15 @@
 
   <ItemGroup>
     <PackageReference Include="AntdUI" Version="2.3.11" />
+    <PackageReference Include="HtmlAgilityPack" Version="1.12.4" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.7" />
-    <content Include="Tools.yt-dlp.exe">
+    <content Include="Tools\yt-dlp.exe">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </content>
-    <content Include="Tools.ffmpeg.exe">
+    <content Include="Tools\ffmpeg.exe">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </content>
-    <content Include="Tools.ffprobe.exe">
+    <content Include="Tools\ffprobe.exe">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </content>
   </ItemGroup>
