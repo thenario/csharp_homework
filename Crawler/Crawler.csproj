@@ -9,7 +9,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="AntdUI" Version="2.3.11" />
     <PackageReference Include="HtmlAgilityPack" Version="1.12.4" />
     <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.7" />
     <content Include="Tools\yt-dlp.exe">
@@ -21,6 +20,8 @@
     <content Include="Tools\ffprobe.exe">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </content>
+    <PackageReference Include="PuppeteerSharp" Version="24.40.0" />
+    <PackageReference Include="SunnyUI" Version="3.9.6" />
   </ItemGroup>
 
 </Project>

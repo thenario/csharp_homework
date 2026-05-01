@@ -1,9 +1,9 @@
 using System;
 using System.IO;
-using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 using HtmlAgilityPack;
+using PuppeteerSharp;
 using Crawler.Core;
 
 namespace Crawler.Engines
@@ -12,31 +12,53 @@ namespace Crawler.Engines
     {
         public async Task StartAsync(string url, string savePath, IProgress<ProgressInfo> progress, CancellationToken token)
         {
-            progress.Report(new ProgressInfo(20, "-", "正在解析 DOM 树..."));
-            
-            var web = new HtmlWeb();
-            var doc = await web.LoadFromWebAsync(url, token);
+            progress.Report(new ProgressInfo(10, "-", "正在启动无头浏览器提取动态文本..."));
 
-            // 提取网页标题和所有段落文本 (示例)
-            string title = doc.DocumentNode.SelectSingleNode("//title")?.InnerText ?? "未命名文档";
-            var nodes = doc.DocumentNode.SelectNodes("//p"); // 抓取所有 <p> 标签
+            // 1. 启动浏览器加载动态页面
+            var browserFetcher = new BrowserFetcher();
+            await browserFetcher.DownloadAsync();
 
-            progress.Report(new ProgressInfo(60, "-", "正在提取文本..."));
-            
-            using var writer = new StreamWriter(savePath);
-            await writer.WriteLineAsync($"# {title}\n");
+            using var browser = await Puppeteer.LaunchAsync(new LaunchOptions { Headless = true });
+            using var page = await browser.NewPageAsync();
+            await page.SetUserAgentAsync("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
 
-            if (nodes != null)
+            token.ThrowIfCancellationRequested();
+
+            progress.Report(new ProgressInfo(40, "-", "正在等待页面元素渲染完成..."));
+            await page.GoToAsync(url, new NavigationOptions { WaitUntil = new[] { WaitUntilNavigation.Networkidle2 } });
+
+            string html = await page.GetContentAsync();
+
+            progress.Report(new ProgressInfo(70, "-", "正在解析DOM并提取正文..."));
+
+            // 2. 将渲染后的 HTML 喂给 HtmlAgilityPack 进行精准解析
+            var doc = new HtmlAgilityPack.HtmlDocument();
+            doc.LoadHtml(html);
+
+            var nodes = doc.DocumentNode.SelectNodes("//p | //article | //div[contains(@class, 'content')]");
+
+            if (nodes == null || nodes.Count == 0)
             {
-                foreach (var node in nodes)
+                throw new Exception("无法提取到文本正文，可能是该页面的正文标签不符合常见规则。");
+            }
+
+            // 3. 写入文件
+            using var writer = new StreamWriter(savePath);
+            foreach (var node in nodes)
+            {
+                token.ThrowIfCancellationRequested();
+                string text = node.InnerText.Trim();
+
+                // 过滤掉过短的无意义字符，比如纯粹的换行符或空格
+                if (text.Length > 10)
                 {
-                    token.ThrowIfCancellationRequested();
-                    await writer.WriteLineAsync(node.InnerText.Trim());
-                    await writer.WriteLineAsync(); // 空行
+                    // 替换多余的空白符，保持文本干净
+                    text = System.Text.RegularExpressions.Regex.Replace(text, @"\s+", " ");
+                    await writer.WriteLineAsync(text + "\n");
                 }
             }
 
-            progress.Report(new ProgressInfo(100, "-", "文本保存完成！"));
+            progress.Report(new ProgressInfo(100, "-", "文本提取完成并已保存。"));
         }
     }
 }

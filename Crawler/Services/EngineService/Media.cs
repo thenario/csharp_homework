@@ -9,12 +9,21 @@ namespace Crawler.Engines
 {
     public class MediaEngine : ICrawlEngine
     {
+        private readonly bool _isAudioOnly;
+
+        public MediaEngine(bool isAudioOnly = false) {
+            _isAudioOnly = isAudioOnly;
+        }
+
         public async Task StartAsync(string url, string savePath, IProgress<ProgressInfo> progress, CancellationToken token)
         {
-            var startInfo = new ProcessStartInfo
-            {
+            string formatArgs = _isAudioOnly 
+                ? "-x --audio-format mp3" 
+                : "-f \"bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best\"";
+
+            var startInfo = new ProcessStartInfo {
                 FileName = "Tools/yt-dlp.exe",
-                Arguments = $"\"{url}\" -o \"{savePath}\" --newline",
+                Arguments = $"{formatArgs} \"{url}\" -o \"{savePath}\" --newline",
                 RedirectStandardOutput = true,
                 UseShellExecute = false,
                 CreateNoWindow = true,
@@ -24,31 +33,21 @@ namespace Crawler.Engines
             using var process = new Process { StartInfo = startInfo };
             process.Start();
 
-            using var registration = token.Register(() =>
-            {
+            using var registration = token.Register(() => {
                 if (!process.HasExited) process.Kill();
             });
 
-            while (!process.StandardOutput.EndOfStream)
-            {
+            while (!process.StandardOutput.EndOfStream) {
                 if (token.IsCancellationRequested) break;
-
                 string? line = await process.StandardOutput.ReadLineAsync();
-                if (line != null && line.Contains("[download]"))
-                {
+                if (line != null && line.Contains("[download]")) {
                     var pctMatch = Regex.Match(line, @"(\d+\.?\d*)(?=%)");
-
-                    var speedMatch = Regex.Match(line, @"(?<=at\s+)(.*?/s)");
-
-                    if (pctMatch.Success)
-                    {
+                    if (pctMatch.Success) {
                         float.TryParse(pctMatch.Value, out float percent);
-                        string speed = speedMatch.Success ? speedMatch.Value.Trim() : "未知";
-                        progress.Report(new ProgressInfo((int)percent, speed, $"正在下载: {percent}%"));
+                        progress.Report(new ProgressInfo((int)percent, "-", $"下载中: {percent}%"));
                     }
                 }
             }
-
             await process.WaitForExitAsync();
         }
     }

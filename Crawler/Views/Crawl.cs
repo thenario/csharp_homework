@@ -2,294 +2,229 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using AntdUI;
 using Crawler.Core;
 using Crawler.Engines;
 using Crawler.Entities;
 using Crawler.Services.DbService;
+using PuppeteerSharp; // 引入 PuppeteerSharp
 
 namespace Crawler.Views
 {
     public class Crawl : UserControl
     {
-        private AntdUI.Input _txtUrl = null!;
-        private DataGridView _tableResults = null!;
-        private AntdUI.Progress _totalProgress = null!;
-        private AntdUI.Label _lblStatus = null!;
-        private AntdUI.Input _txtSavePath = null!;
-        
-        private CancellationTokenSource? _cts;
-        private List<ScanResult> _currentData = new();
+        private TextBox _txtUrl;
+        private DataGridView _grid;
+        private ProgressBar _progress;
+        private Label _lblStatus;
+        private Button _btnCancel;
+        private List<ScanResult> _data = new();
+        private CancellationTokenSource _cts;
 
         public void InitUi()
         {
             this.Controls.Clear();
-            this.Dock = DockStyle.Fill;
-            this.BackColor = Color.White;
             this.Padding = new Padding(20);
 
-            // 1. 顶部操作面板
-            var topPanel = new AntdUI.Panel { Dock = DockStyle.Top, Height = 60 };
-            
-            var btnBack = new AntdUI.Button { Text = "返回", Type = AntdUI.TTypeMini.Default, Location = new Point(0, 10), Size = new Size(80, 38) };
-            btnBack.Click += (s, e) => Router.Router.Instance.GoTo("home");
-
-            _txtUrl = new AntdUI.Input { PlaceholderText = "输入目标 URL...", Location = new Point(90, 10), Size = new Size(400, 38), Radius = 6 };
-            
-            var btnScan = new AntdUI.Button { Text = "扫描资源", Type = AntdUI.TTypeMini.Primary, Location = new Point(500, 10), Size = new Size(100, 38) };
+            // --- 顶部搜索区 ---
+            var searchPanel = new Panel { Dock = DockStyle.Top, Height = 60 };
+            _txtUrl = new TextBox { Location = new System.Drawing.Point(0, 15), Width = 500, Font = new Font("Consolas", 12) };
+            var btnScan = new Button { Text = "解析页面资源", Location = new System.Drawing.Point(510, 12), Width = 120, Height = 32, FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(52, 152, 219), ForeColor = Color.White };
             btnScan.Click += async (s, e) => await HandleScan();
 
-            topPanel.Controls.Add(btnBack);
-            topPanel.Controls.Add(_txtUrl);
-            topPanel.Controls.Add(btnScan);
+            searchPanel.Controls.Add(_txtUrl);
+            searchPanel.Controls.Add(btnScan);
 
-            // 2. 底部控制面板
-            var bottomPanel = new AntdUI.Panel { Dock = DockStyle.Bottom, Height = 130, Padding = new Padding(0, 10, 0, 0) };
-            
-            var lblPath = new AntdUI.Label { Text = "保存路径:", Location = new Point(0, 18), AutoSize = true };
-            
-            _txtSavePath = new AntdUI.Input { Text = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Downloads"), Location = new Point(70, 10), Size = new Size(300, 38), Radius = 6 };
-            
-            var btnBrowse = new AntdUI.Button { Text = "选择路径", Type = AntdUI.TTypeMini.Default, Location = new Point(380, 10), Size = new Size(80, 38) };
-            btnBrowse.Click += (s, e) => {
-                using var dialog = new System.Windows.Forms.FolderBrowserDialog { Description = "选择保存路径", SelectedPath = _txtSavePath.Text };
-                if (dialog.ShowDialog() == DialogResult.OK) {
-                    _txtSavePath.Text = dialog.SelectedPath;
-                }
-            };
-
-            var btnRename = new AntdUI.Button { Text = "修改选中名称", Type = AntdUI.TTypeMini.Default, Location = new Point(470, 10), Size = new Size(110, 38) };
-            btnRename.Click += HandleRename;
-
-            var btnDownload = new AntdUI.Button { Text = "开始下载", Type = AntdUI.TTypeMini.Success, Location = new Point(0, 70), Size = new Size(100, 40) };
-            var btnCancel = new AntdUI.Button { Text = "取消下载", Type = AntdUI.TTypeMini.Error, Location = new Point(110, 70), Size = new Size(80, 40), Ghost = true };
-            
-            // 修复：补全 Size 属性，赋予固定宽度和高度，否则高度默认 0 无法显示
-            _totalProgress = new AntdUI.Progress { Location = new Point(200, 78), Size = new Size(400, 24) };
-            
-            _lblStatus = new AntdUI.Label { Text = "等待操作...", Location = new Point(620, 78), AutoSize = true, ForeColor = Color.Gray };
-
-            btnDownload.Click += async (s, e) => await HandleDownload();
-            btnCancel.Click += (s, e) => {
-                if (_cts != null && !_cts.IsCancellationRequested) {
-                    _cts.Cancel();
-                    _lblStatus.Text = "正在取消下载任务...";
-                }
-            };
-
-            bottomPanel.Controls.Add(lblPath);
-            bottomPanel.Controls.Add(_txtSavePath);
-            bottomPanel.Controls.Add(btnBrowse);
-            bottomPanel.Controls.Add(btnRename);
-            bottomPanel.Controls.Add(btnDownload);
-            bottomPanel.Controls.Add(btnCancel);
-            bottomPanel.Controls.Add(_totalProgress);
-            bottomPanel.Controls.Add(_lblStatus);
-
-            // 3. 中间表格
-            _tableResults = new DataGridView {
+            // --- 中间表格区 ---
+            _grid = new DataGridView
+            {
                 Dock = DockStyle.Fill,
-                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                BackgroundColor = Color.White,
+                BorderStyle = BorderStyle.None,
                 SelectionMode = DataGridViewSelectionMode.FullRowSelect,
-                MultiSelect = true,
                 AllowUserToAddRows = false,
-                AllowUserToDeleteRows = false,
-                ReadOnly = true,
-                BackgroundColor = Color.White
+                RowHeadersVisible = false,
+                EnableHeadersVisualStyles = false,
+                AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+                GridColor = Color.FromArgb(236, 240, 241)
             };
+            _grid.ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle { BackColor = Color.FromArgb(236, 240, 241), ForeColor = Color.Black, Font = new Font("微软雅黑", 10, FontStyle.Bold), Padding = new Padding(5) };
 
-            this.Controls.Add(_tableResults);
-            this.Controls.Add(topPanel);
+            // --- 底部操作区 ---
+            var bottomPanel = new Panel { Dock = DockStyle.Bottom, Height = 100 };
+            _progress = new ProgressBar { Dock = DockStyle.Top, Height = 15 };
+            _lblStatus = new Label { Text = "准备就绪", Top = 30, Left = 0, AutoSize = true };
+
+            var btnDown = new Button { Text = "下载选中项", Top = 25, Left = 500, Width = 120, Height = 35, FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(46, 204, 113), ForeColor = Color.White };
+            btnDown.Click += async (s, e) => await HandleDownload();
+
+            _btnCancel = new Button { Text = "取消任务", Top = 25, Left = 630, Width = 100, Height = 35, FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(231, 76, 60), ForeColor = Color.White, Enabled = false };
+            _btnCancel.Click += (s, e) => _cts?.Cancel();
+
+            bottomPanel.Controls.Add(_progress);
+            bottomPanel.Controls.Add(_lblStatus);
+            bottomPanel.Controls.Add(btnDown);
+            bottomPanel.Controls.Add(_btnCancel);
+
+            this.Controls.Add(_grid);
+            this.Controls.Add(searchPanel);
             this.Controls.Add(bottomPanel);
         }
 
-        private void HandleRename(object? sender, EventArgs e)
-        {
-            if (_tableResults.SelectedRows.Count == 0)
-            {
-                MessageBox.Show("请先勾选需要修改名称的资源！");
-                return;
-            }
-            if (_tableResults.SelectedRows.Count > 1)
-            {
-                MessageBox.Show("一次只能修改一个资源的名称！");
-                return;
-            }
-
-            var rowIndex = _tableResults.SelectedRows[0].Index;
-            var data = _currentData[rowIndex];
-
-            using var form = new Form { 
-                Width = 350, Height = 160, 
-                Text = "修改资源名称", 
-                StartPosition = FormStartPosition.CenterParent, 
-                FormBorderStyle = FormBorderStyle.FixedDialog, 
-                MaximizeBox = false, MinimizeBox = false 
-            };
-            
-            var txt = new System.Windows.Forms.TextBox { Left = 20, Top = 20, Width = 290, Height = 40, Text = data.Title };
-            var btnOk = new System.Windows.Forms.Button { Text = "确定", Left = 140, Top = 70, Width = 80, Height = 35 };
-            var btnCancel = new System.Windows.Forms.Button { Text = "取消", Left = 230, Top = 70, Width = 80, Height = 35 };
-            
-            btnOk.Click += (s, args) => { form.DialogResult = DialogResult.OK; };
-            btnCancel.Click += (s, args) => { form.DialogResult = DialogResult.Cancel; };
-
-            form.Controls.Add(txt);
-            form.Controls.Add(btnOk);
-            form.Controls.Add(btnCancel);
-            
-            if (form.ShowDialog() == DialogResult.OK && !string.IsNullOrWhiteSpace(txt.Text))
-            {
-                data.Title = txt.Text.Trim();
-                _tableResults.DataSource = null; 
-                _tableResults.DataSource = _currentData;
-            }
-        }
-
+        // --- 核心：真正的解析逻辑（已升级为无头浏览器动态渲染） ---
         private async Task HandleScan()
         {
-            string url = _txtUrl.Text;
-            if (string.IsNullOrEmpty(url)) 
-            {
-                MessageBox.Show("请输入需要扫描的 URL！");
-                return;
-            }
+            string url = _txtUrl.Text.Trim();
+            if (string.IsNullOrEmpty(url)) return;
+
+            _data.Clear();
+            _grid.DataSource = null;
 
             try
             {
-                _lblStatus.Text = "正在扫描页面...";
-                await Task.Delay(1000); 
+                _lblStatus.Text = "正在检查浏览器环境 (首次运行可能需下载内核)...";
+                var browserFetcher = new BrowserFetcher();
+                await browserFetcher.DownloadAsync();
 
-                _currentData = new List<ScanResult>
+                _lblStatus.Text = "正在启动浏览器引擎，加载动态页面...";
+
+                using var browser = await Puppeteer.LaunchAsync(new LaunchOptions { Headless = true });
+                using var page = await browser.NewPageAsync();
+
+                await page.SetUserAgentAsync("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+
+                // 等待网络空闲（Networkidle2），确保 JS 渲染完毕，图片懒加载完成
+                await page.GoToAsync(url, new NavigationOptions { WaitUntil = new[] { WaitUntilNavigation.Networkidle2 } });
+
+                // 获取执行 JS 后的真实 HTML
+                string html = await page.GetContentAsync();
+
+                // 1. 提取网页标题
+                string title = Regex.Match(html, @"<title>(.*?)</title>", RegexOptions.IgnoreCase).Groups[1].Value.Trim();
+                if (string.IsNullOrEmpty(title)) title = "未知网页";
+                title = string.Join("_", title.Split(Path.GetInvalidFileNameChars())); // 清理非法字符
+
+                // 2. 添加 视频 和 文本 (整页处理)
+                _data.Add(new ScanResult { Title = $"[视频/音频] {title}", Type = "Video", Url = url, Extension = ".mp4" });
+                _data.Add(new ScanResult { Title = $"[文本] {title}_文章", Type = "Text", Url = url, Extension = ".txt" });
+
+                // 3. 提取所有图片并单独列出 (兼容 src 和 data-src懒加载)
+                int imgCount = 1;
+                var pattern = @"<(?:img|source)[^>]+(?:src|data-src|data-original|srcset)\s*=\s*[""']([^""' >]+)[""']";
+                var imgMatches = Regex.Matches(html, pattern, RegexOptions.IgnoreCase);
+
+                foreach (Match m in imgMatches)
                 {
-                    new ScanResult { Title = "解析到的主视频", Type = "Video", Url = url, Extension = ".mp4" },
-                    new ScanResult { Title = "网页配图集合", Type = "Image", Url = url, Extension = "folder" },
-                    new ScanResult { Title = "网页正文内容", Type = "Text", Url = url, Extension = ".md" }
-                };
+                    string imgUrl = m.Groups[1].Value.Split(' ')[0]; // 处理 srcset 中的多余参数
 
-                _tableResults.DataSource = _currentData;
-                _lblStatus.Text = $"扫描完成，发现 {_currentData.Count} 个可用资源。";
+                    if (!imgUrl.StartsWith("http"))
+                    {
+                        imgUrl = new Uri(new Uri(url), imgUrl).ToString();
+                    }
+
+                    if (imgUrl.StartsWith("data:image")) continue;
+
+                    _data.Add(new ScanResult
+                    {
+                        Title = $"[图片] {title}_图{imgCount++}",
+                        Type = "Image",
+                        Url = imgUrl,
+                        Extension = ".jpg"
+                    });
+                }
+
+                _grid.DataSource = _data;
+                _lblStatus.Text = $"解析完成。发现 {imgCount - 1} 张图片，以及媒体/文本资源。";
+
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"扫描过程发生错误: {ex.Message}");
-                _lblStatus.Text = "扫描失败";
+                _lblStatus.Text = "解析失败: " + ex.Message;
             }
         }
 
+        // --- 核心：完整的下载流程 ---
         private async Task HandleDownload()
         {
-            if (_tableResults.SelectedRows.Count == 0)
+            if (_grid.SelectedRows.Count == 0) return;
+
+            var item = _data[_grid.SelectedRows[0].Index];
+            bool isAudioOnly = false;
+            string finalExt = item.Extension;
+
+            if (item.Type == "Video")
             {
-                MessageBox.Show("请先在列表中勾选需要下载的资源！");
-                return;
+                var formatChoice = MessageBox.Show("是否仅提取音频 (MP3)？\n\n[是] 下载音频\n[否] 下载视频", "yt-dlp参数设置", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
+                if (formatChoice == DialogResult.Cancel) return;
+                isAudioOnly = formatChoice == DialogResult.Yes;
+                finalExt = isAudioOnly ? ".mp3" : ".mp4";
             }
 
-            string saveDir = _txtSavePath.Text;
-            if (string.IsNullOrWhiteSpace(saveDir))
+            using var sfd = new SaveFileDialog
             {
-                MessageBox.Show("请指定文件保存路径！");
-                return;
-            }
+                Title = "选择保存路径并修改文件名",
+                FileName = item.Title.Replace("[视频/音频] ", "").Replace("[图片] ", "").Replace("[文本] ", "") + finalExt,
+                Filter = $"资源文件|*{finalExt}|所有文件|*.*"
+            };
+            if (sfd.ShowDialog() != DialogResult.OK) return;
 
-            try 
+            string savePath = sfd.FileName;
+            string finalTitle = Path.GetFileNameWithoutExtension(savePath);
+
+            ICrawlEngine engine = item.Type switch
             {
-                if (!Directory.Exists(saveDir)) 
+                "Video" => new MediaEngine(isAudioOnly),
+                "Image" => new ImageEngine(),
+                _ => new TextEngine()
+            };
+
+            _cts = new CancellationTokenSource();
+            _btnCancel.Enabled = true;
+
+            var prog = new Progress<ProgressInfo>(i =>
+            {
+                // 使用 Invoke 确保在 UI 线程更新
+                this.Invoke((MethodInvoker)delegate
                 {
-                    Directory.CreateDirectory(saveDir);
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"无法创建保存目录: {ex.Message}");
-                return;
-            }
-
-            if (_cts != null)
-            {
-                _cts.Cancel();
-                _cts.Dispose();
-            }
-            _cts = new CancellationTokenSource(); 
-            
-            // 修复进度条赋值：AntdUI 的 Progress.Value 接收 0.0f - 1.0f 的浮点数
-            var progressHandler = new Progress<ProgressInfo>(info => {
-                _totalProgress.Value = info.Percent / 100f;
-                _lblStatus.Text = info.Message;
+                    _progress.Value = Math.Max(0, Math.Min(100, i.Percent));
+                    _lblStatus.Text = i.Message;
+                });
             });
 
             try
             {
-                int total = _tableResults.SelectedRows.Count;
-                int current = 0;
+                await engine.StartAsync(item.Url, savePath, prog, _cts.Token);
 
-                foreach (DataGridViewRow row in _tableResults.SelectedRows)
+                if (!_cts.IsCancellationRequested)
                 {
-                    var data = _currentData[row.Index];
-                    current++;
-                    _lblStatus.Text = $"准备下载 ({current}/{total}): {data.Title}";
-                    _totalProgress.Value = 0f;
+                    var fileInfo = new FileInfo(savePath);
+                    string sizeStr = fileInfo.Exists ? (fileInfo.Length / 1024.0 / 1024.0).ToString("0.00") + " MB" : "未知";
 
-                    try
+                    new FileDbService().SaveFile(new FileEntity
                     {
-                        ICrawlEngine engine = data.Type switch {
-                            "Video" => new MediaEngine(),
-                            "Image" => new ImageEngine(),
-                            "Text" => new TextEngine(),
-                            _ => throw new Exception("无匹配的爬虫引擎")
-                        };
+                        Title = finalTitle,
+                        Url = item.Url,
+                        LocalPath = savePath,
+                        Type = isAudioOnly ? "Audio" : item.Type,
+                        OriginalName = item.Title + finalExt,
+                        FileSize = sizeStr,
+                        DownloadTime = DateTime.Now
+                    });
 
-                        string fullPath = data.Type == "Image" ? Path.Combine(saveDir, data.Title) : Path.Combine(saveDir, data.Title + data.Extension);
-
-                        if (data.Type == "Image" && !Directory.Exists(fullPath))
-                        {
-                            Directory.CreateDirectory(fullPath);
-                        }
-
-                        await engine.StartAsync(data.Url, fullPath, progressHandler, _cts.Token);
-
-                        try 
-                        {
-                            var dbService = new FileDbService();
-                            dbService.SaveFile(new FileEntity {
-                                Title = data.Title,
-                                Url = data.Url,
-                                LocalPath = fullPath,
-                                Type = data.Type,
-                                OriginalName = data.Title + data.Extension,
-                                FileSize = "未知",
-                                DownloadTime = DateTime.Now
-                            });
-                        } 
-                        catch { }
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        throw; 
-                    }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show($"[{data.Title}] 下载出错: {ex.Message}");
-                    }
+                    _lblStatus.Text = "下载并归档成功！";
+                    MessageBox.Show("下载成功并已存入数据库！");
                 }
-                
-                _totalProgress.Value = 1f; // 100%
-                MessageBox.Show("所有选中的任务均已处理完成！");
-                _lblStatus.Text = "下载完毕";
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) { _lblStatus.Text = "已手动取消任务。"; }
+            catch (Exception ex) { _lblStatus.Text = "出错: " + ex.Message; }
+            finally
             {
-                _totalProgress.Value = 0f;
-                _lblStatus.Text = "下载已被用户强行取消！";
-                MessageBox.Show("任务已取消");
-            }
-            catch (Exception ex)
-            {
-                _lblStatus.Text = "下载发生严重错误";
-                MessageBox.Show($"发生错误: {ex.Message}");
+                _btnCancel.Enabled = false;
+                _cts?.Dispose();
+                _progress.Value = 0;
             }
         }
     }
