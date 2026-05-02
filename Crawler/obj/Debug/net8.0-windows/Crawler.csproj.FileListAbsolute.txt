@@ -62,3 +62,7 @@ Z:\csharp\crawler\bin\Debug\net8.0-windows\System.Text.Encodings.Web.dll
 Z:\csharp\crawler\bin\Debug\net8.0-windows\System.Text.Json.dll
 Z:\csharp\crawler\bin\Debug\net8.0-windows\WebDriverBiDi.dll
 Z:\csharp\crawler\bin\Debug\net8.0-windows\runtimes\browser\lib\net8.0\System.Text.Encodings.Web.dll
+Z:\csharp\Crawler\bin\Debug\net8.0-windows\AngleSharp.dll
+Z:\csharp\Crawler\bin\Debug\net8.0-windows\SmartReader.dll
+Z:\csharp\Crawler\bin\Debug\net8.0-windows\System.Text.Encoding.CodePages.dll
+Z:\csharp\Crawler\bin\Debug\net8.0-windows\runtimes\win\lib\net8.0\System.Text.Encoding.CodePages.dll

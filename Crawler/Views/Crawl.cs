@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel; // 引入这个命名空间
 using System.Drawing;
 using System.IO;
-using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -10,7 +10,7 @@ using Crawler.Core;
 using Crawler.Engines;
 using Crawler.Entities;
 using Crawler.Services.DbService;
-using PuppeteerSharp; // 引入 PuppeteerSharp
+using PuppeteerSharp; 
 
 namespace Crawler.Views
 {
@@ -21,7 +21,9 @@ namespace Crawler.Views
         private ProgressBar _progress;
         private Label _lblStatus;
         private Button _btnCancel;
-        private List<ScanResult> _data = new();
+        
+        // 核心修复1：使用 BindingList，这是 WinForms 动态刷新表格的标准数据结构
+        private BindingList<ScanResult> _data = new BindingList<ScanResult>();
         private CancellationTokenSource _cts;
 
         public void InitUi()
@@ -29,7 +31,6 @@ namespace Crawler.Views
             this.Controls.Clear();
             this.Padding = new Padding(20);
 
-            // --- 顶部搜索区 ---
             var searchPanel = new Panel { Dock = DockStyle.Top, Height = 60 };
             _txtUrl = new TextBox { Location = new System.Drawing.Point(0, 15), Width = 500, Font = new Font("Consolas", 12) };
             var btnScan = new Button { Text = "解析页面资源", Location = new System.Drawing.Point(510, 12), Width = 120, Height = 32, FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(52, 152, 219), ForeColor = Color.White };
@@ -38,7 +39,6 @@ namespace Crawler.Views
             searchPanel.Controls.Add(_txtUrl);
             searchPanel.Controls.Add(btnScan);
 
-            // --- 中间表格区 ---
             _grid = new DataGridView
             {
                 Dock = DockStyle.Fill,
@@ -53,7 +53,9 @@ namespace Crawler.Views
             };
             _grid.ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle { BackColor = Color.FromArgb(236, 240, 241), ForeColor = Color.Black, Font = new Font("微软雅黑", 10, FontStyle.Bold), Padding = new Padding(5) };
 
-            // --- 底部操作区 ---
+            // 核心修复2：只需绑定一次，后续调用 _data.Add 界面会自动刷新
+            _grid.DataSource = _data; 
+
             var bottomPanel = new Panel { Dock = DockStyle.Bottom, Height = 100 };
             _progress = new ProgressBar { Dock = DockStyle.Top, Height = 15 };
             _lblStatus = new Label { Text = "准备就绪", Top = 30, Left = 0, AutoSize = true };
@@ -74,71 +76,108 @@ namespace Crawler.Views
             this.Controls.Add(bottomPanel);
         }
 
-        // --- 核心：真正的解析逻辑（已升级为无头浏览器动态渲染） ---
         private async Task HandleScan()
         {
             string url = _txtUrl.Text.Trim();
             if (string.IsNullOrEmpty(url)) return;
 
-            _data.Clear();
-            _grid.DataSource = null;
+            // 清空列表即可，界面会自动刷新
+            _data.Clear(); 
 
             try
             {
-                _lblStatus.Text = "正在检查浏览器环境 (首次运行可能需下载内核)...";
+                _lblStatus.Text = "正在检查浏览器环境...";
                 var browserFetcher = new BrowserFetcher();
                 await browserFetcher.DownloadAsync();
 
-                _lblStatus.Text = "正在启动浏览器引擎，加载动态页面...";
+                _lblStatus.Text = "正在启动浏览器引擎...";
 
-                using var browser = await Puppeteer.LaunchAsync(new LaunchOptions { Headless = true });
+                using var browser = await Puppeteer.LaunchAsync(new LaunchOptions { 
+                    Headless = true,
+                    UserDataDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "BrowserData")
+                });
+                
                 using var page = await browser.NewPageAsync();
-
+                await page.EvaluateFunctionOnNewDocumentAsync(@"() => { Object.defineProperty(navigator, 'webdriver', { get: () => undefined }); }");
                 await page.SetUserAgentAsync("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
 
-                // 等待网络空闲（Networkidle2），确保 JS 渲染完毕，图片懒加载完成
                 await page.GoToAsync(url, new NavigationOptions { WaitUntil = new[] { WaitUntilNavigation.Networkidle2 } });
 
-                // 获取执行 JS 后的真实 HTML
-                string html = await page.GetContentAsync();
+                // 核心修复3：注入 JS 模拟真人向下滚动网页，把懒加载的图片和文本逼出来！
+                _lblStatus.Text = "正在模拟鼠标滚动，加载隐藏资源...";
+                await page.EvaluateFunctionAsync(@"async () => {
+                    await new Promise((resolve) => {
+                        let totalHeight = 0;
+                        let distance = 300;
+                        let timer = setInterval(() => {
+                            window.scrollBy(0, distance);
+                            totalHeight += distance;
+                            // 滚到底部或者最多滚 15000 像素后停止
+                            if(totalHeight >= document.body.scrollHeight || totalHeight > 15000){ 
+                                clearInterval(timer);
+                                resolve();
+                            }
+                        }, 100);
+                    });
+                }");
 
-                // 1. 提取网页标题
-                string title = Regex.Match(html, @"<title>(.*?)</title>", RegexOptions.IgnoreCase).Groups[1].Value.Trim();
+                await Task.Delay(1000); // 滚完后等 1 秒让图片加载完
+
+                string title = await page.EvaluateExpressionAsync<string>("document.title");
                 if (string.IsNullOrEmpty(title)) title = "未知网页";
-                title = string.Join("_", title.Split(Path.GetInvalidFileNameChars())); // 清理非法字符
+                title = string.Join("_", title.Split(Path.GetInvalidFileNameChars()));
 
-                // 2. 添加 视频 和 文本 (整页处理)
-                _data.Add(new ScanResult { Title = $"[视频/音频] {title}", Type = "Video", Url = url, Extension = ".mp4" });
-                _data.Add(new ScanResult { Title = $"[文本] {title}_文章", Type = "Text", Url = url, Extension = ".txt" });
+                _data.Add(new ScanResult { Title = $"[文本] {title}_正文", Type = "Text", Url = url, Extension = ".txt" });
 
-                // 3. 提取所有图片并单独列出 (兼容 src 和 data-src懒加载)
-                int imgCount = 1;
-                var pattern = @"<(?:img|source)[^>]+(?:src|data-src|data-original|srcset)\s*=\s*[""']([^""' >]+)[""']";
-                var imgMatches = Regex.Matches(html, pattern, RegexOptions.IgnoreCase);
-
-                foreach (Match m in imgMatches)
+                bool hasVideo = await page.EvaluateExpressionAsync<bool>("document.querySelectorAll('video, iframe').length > 0");
+                if (hasVideo || url.Contains("bilibili") || url.Contains("youtube") || url.Contains("v.qq"))
                 {
-                    string imgUrl = m.Groups[1].Value.Split(' ')[0]; // 处理 srcset 中的多余参数
+                    _data.Add(new ScanResult { Title = $"[视频/音频] {title}", Type = "Video", Url = url, Extension = ".mp4" });
+                }
 
-                    if (!imgUrl.StartsWith("http"))
+                // 核心修复4：兼容更多前端框架的图片懒加载属性 (v-lazy, lazy-src 等)
+                string jsCode = @"
+                    Array.from(document.querySelectorAll('img'))
+                         .map(img => img.src || img.getAttribute('data-src') || img.getAttribute('data-original') || img.getAttribute('v-lazy') || img.getAttribute('lazy-src'))
+                         .filter(src => src && !src.startsWith('data:image'))
+                ";
+                var imgUrls = await page.EvaluateExpressionAsync<string[]>(jsCode);
+
+                var uniqueUrls = new HashSet<string>(imgUrls);
+                int imgCount = 1;
+                int realAddCount = 0; // 记录真正添加到表格里的数量
+
+                foreach (string imgUrl in uniqueUrls)
+                {
+                    if (imgUrl.ToLower().Contains("onetrust")) continue;
+
+                    string finalImgUrl = imgUrl;
+                    if (!finalImgUrl.StartsWith("http", StringComparison.OrdinalIgnoreCase))
                     {
-                        imgUrl = new Uri(new Uri(url), imgUrl).ToString();
+                        if (Uri.TryCreate(new Uri(url), finalImgUrl, out Uri absUri))
+                        {
+                            finalImgUrl = absUri.ToString();
+                        }
+                        else continue;
                     }
 
-                    if (imgUrl.StartsWith("data:image")) continue;
+                    string ext = ".jpg";
+                    string lowerUrl = finalImgUrl.ToLower();
+                    if (lowerUrl.Contains(".webp") || lowerUrl.Contains("format=webp") || lowerUrl.Contains("format/webp")) ext = ".webp";
+                    else if (lowerUrl.Contains(".png") || lowerUrl.Contains("format=png")) ext = ".png";
+                    else if (lowerUrl.Contains(".gif") || lowerUrl.Contains("format=gif")) ext = ".gif";
 
                     _data.Add(new ScanResult
                     {
                         Title = $"[图片] {title}_图{imgCount++}",
                         Type = "Image",
-                        Url = imgUrl,
-                        Extension = ".jpg"
+                        Url = finalImgUrl,
+                        Extension = ext 
                     });
+                    realAddCount++;
                 }
 
-                _grid.DataSource = _data;
-                _lblStatus.Text = $"解析完成。发现 {imgCount - 1} 张图片，以及媒体/文本资源。";
-
+                _lblStatus.Text = $"解析完成。成功抓取到 {realAddCount} 张图片以及媒体/文本。";
             }
             catch (Exception ex)
             {
@@ -146,7 +185,7 @@ namespace Crawler.Views
             }
         }
 
-        // --- 核心：完整的下载流程 ---
+        // --- HandleDownload 方法保持上一版的代码不变即可 ---
         private async Task HandleDownload()
         {
             if (_grid.SelectedRows.Count == 0) return;
@@ -172,7 +211,6 @@ namespace Crawler.Views
             if (sfd.ShowDialog() != DialogResult.OK) return;
 
             string savePath = sfd.FileName;
-            string finalTitle = Path.GetFileNameWithoutExtension(savePath);
 
             ICrawlEngine engine = item.Type switch
             {
@@ -186,7 +224,6 @@ namespace Crawler.Views
 
             var prog = new Progress<ProgressInfo>(i =>
             {
-                // 使用 Invoke 确保在 UI 线程更新
                 this.Invoke((MethodInvoker)delegate
                 {
                     _progress.Value = Math.Max(0, Math.Min(100, i.Percent));
@@ -196,20 +233,21 @@ namespace Crawler.Views
 
             try
             {
-                await engine.StartAsync(item.Url, savePath, prog, _cts.Token);
+                string actualSavedPath = await engine.StartAsync(item.Url, savePath, prog, _cts.Token);
 
                 if (!_cts.IsCancellationRequested)
                 {
-                    var fileInfo = new FileInfo(savePath);
+                    var fileInfo = new FileInfo(actualSavedPath);
                     string sizeStr = fileInfo.Exists ? (fileInfo.Length / 1024.0 / 1024.0).ToString("0.00") + " MB" : "未知";
+                    string finalTitle = Path.GetFileNameWithoutExtension(actualSavedPath); 
 
                     new FileDbService().SaveFile(new FileEntity
                     {
                         Title = finalTitle,
                         Url = item.Url,
-                        LocalPath = savePath,
+                        LocalPath = actualSavedPath, 
                         Type = isAudioOnly ? "Audio" : item.Type,
-                        OriginalName = item.Title + finalExt,
+                        OriginalName = Path.GetFileName(actualSavedPath),
                         FileSize = sizeStr,
                         DownloadTime = DateTime.Now
                     });

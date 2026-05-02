@@ -1,9 +1,10 @@
 {
   "version": 2,
-  "dgSpecHash": "i2TOz4wtK+k=",
+  "dgSpecHash": "irkaR4rf+G0=",
   "success": true,
-  "projectFilePath": "Z:\\csharp\\crawler\\Crawler.csproj",
+  "projectFilePath": "Z:\\csharp\\Crawler\\Crawler.csproj",
   "expectedPackageFiles": [
+    "C:\\Users\\20343\\.nuget\\packages\\anglesharp\\1.4.0\\anglesharp.1.4.0.nupkg.sha512",
     "C:\\Users\\20343\\.nuget\\packages\\htmlagilitypack\\1.12.4\\htmlagilitypack.1.12.4.nupkg.sha512",
     "C:\\Users\\20343\\.nuget\\packages\\microsoft.bcl.asyncinterfaces\\10.0.3\\microsoft.bcl.asyncinterfaces.10.0.3.nupkg.sha512",
     "C:\\Users\\20343\\.nuget\\packages\\microsoft.data.sqlite\\10.0.7\\microsoft.data.sqlite.10.0.7.nupkg.sha512",
@@ -16,6 +17,7 @@
     "C:\\Users\\20343\\.nuget\\packages\\microsoft.extensions.primitives\\10.0.0\\microsoft.extensions.primitives.10.0.0.nupkg.sha512",
     "C:\\Users\\20343\\.nuget\\packages\\microsoft.io.recyclablememorystream\\3.0.1\\microsoft.io.recyclablememorystream.3.0.1.nupkg.sha512",
     "C:\\Users\\20343\\.nuget\\packages\\puppeteersharp\\24.40.0\\puppeteersharp.24.40.0.nupkg.sha512",
+    "C:\\Users\\20343\\.nuget\\packages\\smartreader\\0.11.0\\smartreader.0.11.0.nupkg.sha512",
     "C:\\Users\\20343\\.nuget\\packages\\sqlitepclraw.bundle_e_sqlite3\\2.1.11\\sqlitepclraw.bundle_e_sqlite3.2.1.11.nupkg.sha512",
     "C:\\Users\\20343\\.nuget\\packages\\sqlitepclraw.core\\2.1.11\\sqlitepclraw.core.2.1.11.nupkg.sha512",
     "C:\\Users\\20343\\.nuget\\packages\\sqlitepclraw.lib.e_sqlite3\\2.1.11\\sqlitepclraw.lib.e_sqlite3.2.1.11.nupkg.sha512",
@@ -25,6 +27,7 @@
     "C:\\Users\\20343\\.nuget\\packages\\system.diagnostics.diagnosticsource\\10.0.0\\system.diagnostics.diagnosticsource.10.0.0.nupkg.sha512",
     "C:\\Users\\20343\\.nuget\\packages\\system.io.pipelines\\10.0.3\\system.io.pipelines.10.0.3.nupkg.sha512",
     "C:\\Users\\20343\\.nuget\\packages\\system.memory\\4.5.3\\system.memory.4.5.3.nupkg.sha512",
+    "C:\\Users\\20343\\.nuget\\packages\\system.text.encoding.codepages\\10.0.0\\system.text.encoding.codepages.10.0.0.nupkg.sha512",
     "C:\\Users\\20343\\.nuget\\packages\\system.text.encodings.web\\10.0.3\\system.text.encodings.web.10.0.3.nupkg.sha512",
     "C:\\Users\\20343\\.nuget\\packages\\system.text.json\\10.0.3\\system.text.json.10.0.3.nupkg.sha512",
     "C:\\Users\\20343\\.nuget\\packages\\webdriverbidi\\0.0.45\\webdriverbidi.0.0.45.nupkg.sha512"

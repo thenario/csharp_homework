@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "Z:\\csharp\\crawler\\Crawler.csproj": {}
+    "Z:\\csharp\\Crawler\\Crawler.csproj": {}
   },
   "projects": {
-    "Z:\\csharp\\crawler\\Crawler.csproj": {
+    "Z:\\csharp\\Crawler\\Crawler.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "Z:\\csharp\\crawler\\Crawler.csproj",
+        "projectUniqueName": "Z:\\csharp\\Crawler\\Crawler.csproj",
         "projectName": "Crawler",
-        "projectPath": "Z:\\csharp\\crawler\\Crawler.csproj",
+        "projectPath": "Z:\\csharp\\Crawler\\Crawler.csproj",
         "packagesPath": "C:\\Users\\20343\\.nuget\\packages\\",
-        "outputPath": "Z:\\csharp\\crawler\\obj\\",
+        "outputPath": "Z:\\csharp\\Crawler\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -58,6 +58,10 @@
             "PuppeteerSharp": {
               "target": "Package",
               "version": "[24.40.0, )"
+            },
+            "SmartReader": {
+              "target": "Package",
+              "version": "[0.11.0, )"
             },
             "SunnyUI": {
               "target": "Package",

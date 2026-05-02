@@ -11,10 +11,19 @@
           "HtmlAgilityPack": "1.12.4",
           "Microsoft.Data.Sqlite": "10.0.7",
           "PuppeteerSharp": "24.40.0",
+          "SmartReader": "0.11.0",
           "SunnyUI": "3.9.6"
         },
         "runtime": {
           "Crawler.dll": {}
+        }
+      },
+      "AngleSharp/1.4.0": {
+        "runtime": {
+          "lib/net8.0/AngleSharp.dll": {
+            "assemblyVersion": "1.4.0.0",
+            "fileVersion": "1.4.0.0"
+          }
         }
       },
       "HtmlAgilityPack/1.12.4": {
@@ -135,6 +144,19 @@
           "lib/netstandard2.0/PuppeteerSharp.dll": {
             "assemblyVersion": "24.40.0.0",
             "fileVersion": "24.40.0.0"
+          }
+        }
+      },
+      "SmartReader/0.11.0": {
+        "dependencies": {
+          "AngleSharp": "1.4.0",
+          "System.Text.Encoding.CodePages": "10.0.0",
+          "System.Text.Json": "10.0.3"
+        },
+        "runtime": {
+          "lib/netstandard2.1/SmartReader.dll": {
+            "assemblyVersion": "0.11.0.0",
+            "fileVersion": "0.11.0.0"
           }
         }
       },
@@ -327,6 +349,22 @@
         }
       },
       "System.Memory/4.5.3": {},
+      "System.Text.Encoding.CodePages/10.0.0": {
+        "runtime": {
+          "lib/net8.0/System.Text.Encoding.CodePages.dll": {
+            "assemblyVersion": "10.0.0.0",
+            "fileVersion": "10.0.25.52411"
+          }
+        },
+        "runtimeTargets": {
+          "runtimes/win/lib/net8.0/System.Text.Encoding.CodePages.dll": {
+            "rid": "win",
+            "assetType": "runtime",
+            "assemblyVersion": "10.0.0.0",
+            "fileVersion": "10.0.25.52411"
+          }
+        }
+      },
       "System.Text.Encodings.Web/10.0.3": {
         "runtime": {
           "lib/net8.0/System.Text.Encodings.Web.dll": {
@@ -370,6 +408,13 @@
       "type": "project",
       "serviceable": false,
       "sha512": ""
+    },
+    "AngleSharp/1.4.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-6ph8mpaQx0KL0COYRt0kI8MB9gSp1PtKijKMhJU//+aVFgKAJLKDesG/+26JSaVCOrHNgPf12wpfoyRcMYOeXg==",
+      "path": "anglesharp/1.4.0",
+      "hashPath": "anglesharp.1.4.0.nupkg.sha512"
     },
     "HtmlAgilityPack/1.12.4": {
       "type": "package",
@@ -455,6 +500,13 @@
       "path": "puppeteersharp/24.40.0",
       "hashPath": "puppeteersharp.24.40.0.nupkg.sha512"
     },
+    "SmartReader/0.11.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-DSn2HErPhhaf+IIyFFQNAyPS1Z4Dv3EYLQlgHwdDlpDxolvB8RCDvTiQZGP3yg9tLMTT2eA9RIN7DbZLbiamhg==",
+      "path": "smartreader/0.11.0",
+      "hashPath": "smartreader.0.11.0.nupkg.sha512"
+    },
     "SQLitePCLRaw.bundle_e_sqlite3/2.1.11": {
       "type": "package",
       "serviceable": true,
@@ -517,6 +569,13 @@
       "sha512": "sha512-3oDzvc/zzetpTKWMShs1AADwZjQ/36HnsufHRPcOjyRAAMLDlu2iD33MBI2opxnezcVUtXyqDXXjoFMOU9c7SA==",
       "path": "system.memory/4.5.3",
       "hashPath": "system.memory.4.5.3.nupkg.sha512"
+    },
+    "System.Text.Encoding.CodePages/10.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-QLP54mIATaBpjGlsZIxga38VPk1G9js0Kw651B+bvrXi2kSgGZYrxJSpM3whhTZCBK4HEBHX3fzfDQMw7CXHGQ==",
+      "path": "system.text.encoding.codepages/10.0.0",
+      "hashPath": "system.text.encoding.codepages.10.0.0.nupkg.sha512"
     },
     "System.Text.Encodings.Web/10.0.3": {
       "type": "package",
