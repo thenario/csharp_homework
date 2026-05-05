@@ -8,7 +8,6 @@ namespace Crawler.Core
 
     public interface ICrawlEngine
     {
-        // 升级：返回最终真实保存的文件路径
         Task<string> StartAsync(string url, string savePath, IProgress<ProgressInfo> progress, CancellationToken token);
     }
 

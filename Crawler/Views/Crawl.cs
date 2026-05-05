@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.ComponentModel; // 引入这个命名空间
+using System.ComponentModel;
 using System.Drawing;
 using System.IO;
 using System.Threading;
@@ -21,8 +21,6 @@ namespace Crawler.Views
         private ProgressBar _progress;
         private Label _lblStatus;
         private Button _btnCancel;
-        
-        // 核心修复1：使用 BindingList，这是 WinForms 动态刷新表格的标准数据结构
         private BindingList<ScanResult> _data = new BindingList<ScanResult>();
         private CancellationTokenSource _cts;
 
@@ -53,7 +51,6 @@ namespace Crawler.Views
             };
             _grid.ColumnHeadersDefaultCellStyle = new DataGridViewCellStyle { BackColor = Color.FromArgb(236, 240, 241), ForeColor = Color.Black, Font = new Font("微软雅黑", 10, FontStyle.Bold), Padding = new Padding(5) };
 
-            // 核心修复2：只需绑定一次，后续调用 _data.Add 界面会自动刷新
             _grid.DataSource = _data; 
 
             var bottomPanel = new Panel { Dock = DockStyle.Bottom, Height = 100 };
@@ -81,7 +78,6 @@ namespace Crawler.Views
             string url = _txtUrl.Text.Trim();
             if (string.IsNullOrEmpty(url)) return;
 
-            // 清空列表即可，界面会自动刷新
             _data.Clear(); 
 
             try
@@ -103,7 +99,7 @@ namespace Crawler.Views
 
                 await page.GoToAsync(url, new NavigationOptions { WaitUntil = new[] { WaitUntilNavigation.Networkidle2 } });
 
-                // 核心修复3：注入 JS 模拟真人向下滚动网页，把懒加载的图片和文本逼出来！
+  
                 _lblStatus.Text = "正在模拟鼠标滚动，加载隐藏资源...";
                 await page.EvaluateFunctionAsync(@"async () => {
                     await new Promise((resolve) => {
@@ -121,7 +117,7 @@ namespace Crawler.Views
                     });
                 }");
 
-                await Task.Delay(1000); // 滚完后等 1 秒让图片加载完
+                await Task.Delay(1000);
 
                 string title = await page.EvaluateExpressionAsync<string>("document.title");
                 if (string.IsNullOrEmpty(title)) title = "未知网页";
@@ -135,7 +131,6 @@ namespace Crawler.Views
                     _data.Add(new ScanResult { Title = $"[视频/音频] {title}", Type = "Video", Url = url, Extension = ".mp4" });
                 }
 
-                // 核心修复4：兼容更多前端框架的图片懒加载属性 (v-lazy, lazy-src 等)
                 string jsCode = @"
                     Array.from(document.querySelectorAll('img'))
                          .map(img => img.src || img.getAttribute('data-src') || img.getAttribute('data-original') || img.getAttribute('v-lazy') || img.getAttribute('lazy-src'))
@@ -145,7 +140,7 @@ namespace Crawler.Views
 
                 var uniqueUrls = new HashSet<string>(imgUrls);
                 int imgCount = 1;
-                int realAddCount = 0; // 记录真正添加到表格里的数量
+                int realAddCount = 0;
 
                 foreach (string imgUrl in uniqueUrls)
                 {
@@ -185,7 +180,6 @@ namespace Crawler.Views
             }
         }
 
-        // --- HandleDownload 方法保持上一版的代码不变即可 ---
         private async Task HandleDownload()
         {
             if (_grid.SelectedRows.Count == 0) return;

@@ -16,7 +16,6 @@ namespace Crawler.Engines
             var browserFetcher = new BrowserFetcher();
             await browserFetcher.DownloadAsync();
 
-            // 使用真实的浏览器环境直接访问图片，网站绝不可能拦截
             using var browser = await Puppeteer.LaunchAsync(new LaunchOptions { Headless = true, UserDataDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "BrowserData") });
             using var page = await browser.NewPageAsync();
 
@@ -29,12 +28,10 @@ namespace Crawler.Engines
             if (!response.Ok)
                 throw new Exception($"图片下载失败：服务器拒绝访问 (HTTP {response.Status})，可能是高级防盗链。");
 
-            // 直接从浏览器底层抽离图片字节流！
             byte[] imageBytes = await response.BufferAsync();
             if (imageBytes == null || imageBytes.Length == 0)
                 throw new Exception("下载失败：获取到了空文件，图片可能已失效。");
 
-            // 动态验证并修正后缀
             var contentType = response.Headers.ContainsKey("content-type") ? response.Headers["content-type"].ToLower() : "";
             string trueExt = Path.GetExtension(savePath);
             if (contentType.Contains("webp")) trueExt = ".webp";

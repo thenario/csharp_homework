@@ -25,9 +25,8 @@ namespace Crawler.Engines
             progress.Report(new ProgressInfo(30, "-", "等待页面加载..."));
             await page.GoToAsync(url, new NavigationOptions { WaitUntil = new[] { WaitUntilNavigation.Networkidle2 } });
 
-            progress.Report(new ProgressInfo(40, "-", "正在暴力破解隐藏正文及折叠按钮..."));
+            progress.Report(new ProgressInfo(40, "-", "正在破解隐藏正文及折叠按钮..."));
             await page.EvaluateFunctionAsync(@"async () => {
-                // 1. 自动滚屏
                 await new Promise((resolve) => {
                     let totalHeight = 0;
                     let distance = 300;
@@ -38,11 +37,11 @@ namespace Crawler.Engines
                     }, 100);
                 });
 
-                // 2. 狂暴点击所有可能的“展开全文”按钮
+                // 点击所有可能的“展开全文”按钮
                 const expandSelectors =['.read-more', '.expand', '.btn-readmore', '.js-unfold', '.show-more', '.btn-bg', '.fold-btn', '.text-expand', '.article-unfold', '.collapse-btn'];
                 expandSelectors.forEach(sel => document.querySelectorAll(sel).forEach(b => { try { b.click(); } catch(e){} }));
 
-                // 3. 终极破解：强制取消所有被网站隐藏的样式 (把 display:none 强行拔掉)
+                // 取消所有被网站隐藏的样式
                 document.querySelectorAll('*').forEach(el => {
                     const style = window.getComputedStyle(el);
                     if (style.display === 'none' && !el.tagName.toLowerCase().includes('script') && !el.tagName.toLowerCase().includes('style')) {
@@ -53,12 +52,12 @@ namespace Crawler.Engines
                     }
                 });
 
-                // 4. 清除垃圾节点
+                // 清除垃圾节点
                 const trashSelectors =['#onetrust-consent-sdk', '.cookie-banner', '.recommend', '.related', '.advertisement', '.ad-box', 'nav', 'footer', '.header', '.comment-list'];
                 trashSelectors.forEach(sel => document.querySelectorAll(sel).forEach(el => el.remove()));
             }");
 
-            await Task.Delay(2000, token); // 给 DOM 渲染留一点时间
+            await Task.Delay(2000, token);
 
             string html = await page.GetContentAsync();
             progress.Report(new ProgressInfo(60, "-", "正在智能识别正文..."));
@@ -91,7 +90,7 @@ namespace Crawler.Engines
             // 如果折腾了这么多还是提取不到，直接抛出异常拦截，而不是生成无用的 txt 文件
             if (string.IsNullOrWhiteSpace(finalContent) || finalContent.Length < 20)
             {
-                throw new Exception("无法提取到有效的正文，该网站的正文可能被严重加密，或者需要强制登录/App打开。");
+                throw new Exception("无法提取到有效的正文。");
             }
 
             progress.Report(new ProgressInfo(90, "-", "正在写入文件..."));
