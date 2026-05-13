@@ -3,81 +3,77 @@ using System.Collections.Generic;
 using Microsoft.Data.Sqlite;
 using Crawler.Entities;
 
-namespace Crawler.Services.DbService;
-
-public class FileDbService
+namespace Crawler.Services.DbService
 {
-    private readonly string _connectionString = "Data Source=data.db";
-
-    public void InitialFileDbService()
+    public class FileDbService
     {
-        using var connection = new SqliteConnection(_connectionString);
-        connection.Open();
+        private readonly string _connectionString = "Data Source=data.db";
 
-        var command = connection.CreateCommand();
-        command.CommandText = """
-        CREATE TABLE IF NOT EXISTS Files (
-            Id INTEGER PRIMARY KEY AUTOINCREMENT,
-            Title TEXT NOT NULL,
-            Url TEXT NOT NULL,
-            LocalPath TEXT NOT NULL,
-            Type TEXT NOT NULL,
-            OriginalName TEXT NOT NULL,
-            FileSize TEXT NOT NULL,
-            DownloadTime DATETIME NOT NULL
-        )
-        """;
-        command.ExecuteNonQuery();
-    }
-
-    public List<FileEntity> GetAllFiles(int currentPage, int pageSize)
-    {
-        using var connection = new SqliteConnection(_connectionString);
-        List<FileEntity> list = new List<FileEntity>();
-        connection.Open();
-
-        var command = connection.CreateCommand();
-        command.CommandText = "SELECT * FROM Files ORDER BY DownloadTime DESC LIMIT $LIMIT OFFSET $OFFSET";
-
-        command.Parameters.AddWithValue("$LIMIT", pageSize);
-        command.Parameters.AddWithValue("$OFFSET", (currentPage - 1) * pageSize);
-
-        using var reader = command.ExecuteReader();
-        while (reader.Read())
+        public void InitialFileDbService()
         {
-            list.Add(new FileEntity
-            {
-                Id = reader.GetInt32(0),
-                Title = reader.GetString(1),
-                Url = reader.GetString(2),
-                LocalPath = reader.GetString(3),
-                Type = reader.GetString(4),
-                OriginalName = reader.GetString(5),
-                FileSize = reader.GetString(6),
-                DownloadTime = reader.GetDateTime(7)
-            });
+            using var connection = new SqliteConnection(_connectionString);
+            connection.Open();
+            var command = connection.CreateCommand();
+            command.CommandText = """
+            CREATE TABLE IF NOT EXISTS Files (
+                Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                Title TEXT NOT NULL,
+                Url TEXT NOT NULL,
+                LocalPath TEXT NOT NULL,
+                Type TEXT NOT NULL,
+                OriginalName TEXT NOT NULL,
+                FileSize TEXT NOT NULL,
+                DownloadTime DATETIME NOT NULL
+            )
+            """;
+            command.ExecuteNonQuery();
         }
-        return list;
-    }
 
-    public void SaveFile(FileEntity file)
-    {
-        using var connection = new SqliteConnection(_connectionString);
-        connection.Open();
-        var command = connection.CreateCommand();
-        command.CommandText = """
-        INSERT INTO Files (Title, Url, LocalPath, Type, OriginalName, FileSize, DownloadTime)
-        VALUES ($title, $url, $path, $type, $name, $size, $time)
-    """;
+        public List<FileEntity> GetFilesByType(string type, int currentPage, int pageSize)
+        {
+            using var connection = new SqliteConnection(_connectionString);
+            List<FileEntity> list = new List<FileEntity>();
+            connection.Open();
 
-        command.Parameters.AddWithValue("$title", file.Title ?? "");
-        command.Parameters.AddWithValue("$url", file.Url ?? "");
-        command.Parameters.AddWithValue("$path", file.LocalPath ?? "");
-        command.Parameters.AddWithValue("$type", file.Type ?? "");
-        command.Parameters.AddWithValue("$name", file.OriginalName ?? "");
-        command.Parameters.AddWithValue("$size", file.FileSize ?? "");
-        command.Parameters.AddWithValue("$time", file.DownloadTime);
+            var command = connection.CreateCommand();
+            command.CommandText = "SELECT * FROM Files WHERE Type = $TYPE ORDER BY DownloadTime DESC LIMIT $LIMIT OFFSET $OFFSET";
+            command.Parameters.AddWithValue("$TYPE", type);
+            command.Parameters.AddWithValue("$LIMIT", pageSize);
+            command.Parameters.AddWithValue("$OFFSET", (currentPage - 1) * pageSize);
 
-        command.ExecuteNonQuery();
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                list.Add(new FileEntity {
+                    Id = reader.GetInt32(0), Title = reader.GetString(1), Url = reader.GetString(2),
+                    LocalPath = reader.GetString(3), Type = reader.GetString(4), OriginalName = reader.GetString(5),
+                    FileSize = reader.GetString(6), DownloadTime = reader.GetDateTime(7)
+                });
+            }
+            return list;
+        }
+
+        public void DeleteFile(int id)
+        {
+            using var connection = new SqliteConnection(_connectionString);
+            connection.Open();
+            var command = connection.CreateCommand();
+            command.CommandText = "DELETE FROM Files WHERE Id = $ID";
+            command.Parameters.AddWithValue("$ID", id);
+            command.ExecuteNonQuery();
+        }
+
+        public void SaveFile(FileEntity file)
+        {
+            using var connection = new SqliteConnection(_connectionString);
+            connection.Open();
+            var command = connection.CreateCommand();
+            command.CommandText = "INSERT INTO Files (Title, Url, LocalPath, Type, OriginalName, FileSize, DownloadTime) VALUES ($title, $url, $path, $type, $name, $size, $time)";
+            command.Parameters.AddWithValue("$title", file.Title ?? ""); command.Parameters.AddWithValue("$url", file.Url ?? "");
+            command.Parameters.AddWithValue("$path", file.LocalPath ?? ""); command.Parameters.AddWithValue("$type", file.Type ?? "");
+            command.Parameters.AddWithValue("$name", file.OriginalName ?? ""); command.Parameters.AddWithValue("$size", file.FileSize ?? "");
+            command.Parameters.AddWithValue("$time", file.DownloadTime);
+            command.ExecuteNonQuery();
+        }
     }
 }

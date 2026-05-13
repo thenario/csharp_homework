@@ -8,9 +8,9 @@ using Crawler.Core;
 
 namespace Crawler.Engines
 {
-    public class TextEngine : ICrawlEngine
+    public class TextEngine
     {
-        public async Task<string> StartAsync(string url, string savePath, IProgress<ProgressInfo> progress, CancellationToken token)
+        public async Task<string> ExtractTextAsync(string url, IProgress<ProgressInfo> progress, CancellationToken token)
         {
             progress.Report(new ProgressInfo(10, "-", "正在启动无头浏览器..."));
             var browserFetcher = new BrowserFetcher();
@@ -28,31 +28,20 @@ namespace Crawler.Engines
             progress.Report(new ProgressInfo(40, "-", "正在破解隐藏正文及折叠按钮..."));
             await page.EvaluateFunctionAsync(@"async () => {
                 await new Promise((resolve) => {
-                    let totalHeight = 0;
-                    let distance = 300;
-                    let timer = setInterval(() => {
-                        window.scrollBy(0, distance);
-                        totalHeight += distance;
-                        if(totalHeight >= document.body.scrollHeight || totalHeight > 10000) { clearInterval(timer); resolve(); }
-                    }, 100);
+                    let totalHeight = 0, distance = 300;
+                    let timer = setInterval(() => { window.scrollBy(0, distance); totalHeight += distance; if(totalHeight > 10000) { clearInterval(timer); resolve(); } }, 100);
                 });
 
-                // 点击所有可能的“展开全文”按钮
                 const expandSelectors =['.read-more', '.expand', '.btn-readmore', '.js-unfold', '.show-more', '.btn-bg', '.fold-btn', '.text-expand', '.article-unfold', '.collapse-btn'];
                 expandSelectors.forEach(sel => document.querySelectorAll(sel).forEach(b => { try { b.click(); } catch(e){} }));
 
-                // 取消所有被网站隐藏的样式
                 document.querySelectorAll('*').forEach(el => {
                     const style = window.getComputedStyle(el);
                     if (style.display === 'none' && !el.tagName.toLowerCase().includes('script') && !el.tagName.toLowerCase().includes('style')) {
-                        el.style.display = 'block';
-                        el.style.height = 'auto';
-                        el.style.maxHeight = 'none';
-                        el.style.overflow = 'visible';
+                        el.style.display = 'block'; el.style.height = 'auto'; el.style.maxHeight = 'none'; el.style.overflow = 'visible';
                     }
                 });
 
-                // 清除垃圾节点
                 const trashSelectors =['#onetrust-consent-sdk', '.cookie-banner', '.recommend', '.related', '.advertisement', '.ad-box', 'nav', 'footer', '.header', '.comment-list'];
                 trashSelectors.forEach(sel => document.querySelectorAll(sel).forEach(el => el.remove()));
             }");
@@ -77,31 +66,25 @@ namespace Crawler.Engines
                         if (best && best.innerText.length > 50) return best.innerText;
                     }
                     let ps = Array.from(document.querySelectorAll('p'));
-                    if (ps.length > 0) {
-                        return ps.map(p => p.innerText.trim()).filter(t => t.length > 10).join('\n\n');
-                    }
+                    if (ps.length > 0) return ps.map(p => p.innerText.trim()).filter(t => t.length > 10).join('\n\n');
                     return document.body.innerText;
                 }");
             }
 
-            // 清除混进去的杂质词
             finalContent = finalContent?.Replace("为你精选更多内容", "")?.Replace("继续阅读", "")?.Trim();
 
-            // 如果折腾了这么多还是提取不到，直接抛出异常拦截，而不是生成无用的 txt 文件
             if (string.IsNullOrWhiteSpace(finalContent) || finalContent.Length < 20)
-            {
                 throw new Exception("无法提取到有效的正文。");
-            }
-
-            progress.Report(new ProgressInfo(90, "-", "正在写入文件..."));
-            using var writer = new StreamWriter(savePath);
-            await writer.WriteLineAsync($"标题: {(string.IsNullOrEmpty(article.Title) ? "未命名标题" : article.Title)}");
-            await writer.WriteLineAsync($"抓取时间: {DateTime.Now}");
-            await writer.WriteLineAsync(new string('-', 50) + "\n");
-            await writer.WriteLineAsync(finalContent);
 
             progress.Report(new ProgressInfo(100, "-", "文本提取完成。"));
-            return savePath;
+
+            // 核心修改：直接在内存中拼装好字符串，返回给 UI！
+            string resultText = $"标题: {(string.IsNullOrEmpty(article.Title) ? "未命名标题" : article.Title)}\r\n";
+            resultText += $"抓取时间: {DateTime.Now:yyyy-MM-dd HH:mm:ss}\r\n";
+            resultText += new string('-', 50) + "\r\n\r\n";
+            resultText += finalContent;
+
+            return resultText; 
         }
     }
 }

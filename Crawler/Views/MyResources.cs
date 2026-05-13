@@ -1,149 +1,83 @@
 using System;
 using System.Drawing;
+using System.IO;
 using System.Windows.Forms;
 using Crawler.Services.DbService;
 
 namespace Crawler.Views
 {
-    public class MyResources : UserControl
+    // 利用参数传递，这一个类就能代替三个库类，复用度极高
+    public class ResourceLibrary : UserControl
     {
         private FlowLayoutPanel _list;
-        
-        private Button _btnPrev;
-        private Button _btnNext;
-        private Label _lblPageInfo;
+        private string _typeFilter;
+        private string _pageTitle;
 
-        private int _currentPage = 1;
-        private const int PageSize = 10;
+        public ResourceLibrary(string typeFilter, string pageTitle)
+        {
+            _typeFilter = typeFilter;
+            _pageTitle = pageTitle;
+        }
 
         public void InitUi()
         {
             this.Controls.Clear();
             this.Padding = new Padding(0);
 
-            var header = new Label 
-            { 
-                Text = "本地已归档资源", 
-                Dock = DockStyle.Top, 
-                Height = 60, 
-                Font = new Font("微软雅黑", 16, FontStyle.Bold), 
-                TextAlign = ContentAlignment.MiddleLeft, 
-                Padding = new Padding(20, 0, 0, 0) 
-            };
-
-            var bottomPanel = new Panel { Dock = DockStyle.Bottom, Height = 60, BackColor = Color.Transparent };
-            
-            _btnPrev = new Button { Text = "上一页", Size = new Size(100, 35), FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand, BackColor = Color.White };
-            _btnNext = new Button { Text = "下一页", Size = new Size(100, 35), FlatStyle = FlatStyle.Flat, Cursor = Cursors.Hand, BackColor = Color.White };
-            _lblPageInfo = new Label { Text = "第 1 页", AutoSize = true, Font = new Font("微软雅黑", 11, FontStyle.Bold) };
-
-            _btnPrev.Click += (s, e) => {
-                if (_currentPage > 1) {
-                    _currentPage--;
-                    LoadPageData();
-                }
-            };
-            
-            _btnNext.Click += (s, e) => {
-                _currentPage++;
-                LoadPageData();
-            };
-
-            bottomPanel.Controls.Add(_btnPrev);
-            bottomPanel.Controls.Add(_lblPageInfo);
-            bottomPanel.Controls.Add(_btnNext);
-
-            bottomPanel.SizeChanged += (s, e) => UpdatePagerLayout(bottomPanel);
+            var header = new Label { Text = _pageTitle, Dock = DockStyle.Top, Height = 60, Font = new Font("微软雅黑", 16, FontStyle.Bold), TextAlign = ContentAlignment.MiddleLeft, Padding = new Padding(20, 0, 0, 0) };
 
             _list = new FlowLayoutPanel { Dock = DockStyle.Fill, AutoScroll = true, Padding = new Padding(20) };
-
             this.Controls.Add(_list);
-            this.Controls.Add(bottomPanel);
             this.Controls.Add(header);
 
-            // 初始化加载第一页
-            _currentPage = 1;
-            LoadPageData();
+            LoadData();
         }
 
-        // 抽取出来的居中排版方法
-        private void UpdatePagerLayout(Control container)
-        {
-            if (container == null) return;
-            int centerX = container.Width / 2;
-            
-            _lblPageInfo.Location = new Point(centerX - _lblPageInfo.Width / 2, 20);
-            _btnPrev.Location = new Point(_lblPageInfo.Left - _btnPrev.Width - 30, 12);
-            _btnNext.Location = new Point(_lblPageInfo.Right + 30, 12);
-        }
-
-        private void LoadPageData()
+        private void LoadData()
         {
             _list.SuspendLayout();
-            
-            _list.Controls.Clear(); 
+            _list.Controls.Clear();
 
-            var files = new FileDbService().GetAllFiles(_currentPage, PageSize);
+            // 提取属于该类的所有资源 (这里为了演示简单，传了100条限制，你可以套用之前的分页逻辑)
+            var files = new FileDbService().GetFilesByType(_typeFilter, 1, 100);
 
             foreach (var f in files)
             {
-                var p = new Panel { Size = new Size(800, 70), Margin = new Padding(0, 0, 0, 10), BackColor = Color.White };
+                var p = new Panel { Size = new Size(900, 90), Margin = new Padding(0, 0, 0, 10), BackColor = Color.White };
                 p.Paint += (s, e) => ControlPaint.DrawBorder(e.Graphics, p.ClientRectangle, Color.FromArgb(230, 230, 230), ButtonBorderStyle.Solid);
 
-                string typeTag = f.Type == "Video" ? "[视频]" : f.Type == "Image" ? "[图片]" : "[文本]";
-
-                var title = new Label { Text = $"{typeTag} {f.Title}", Top = 15, Left = 20, AutoSize = true, Font = new Font("微软雅黑", 10, FontStyle.Bold) };
-                var time = new Label { Text = f.DownloadTime.ToString("yyyy-MM-dd HH:mm") + $"  |  大小: {f.FileSize}", Top = 40, Left = 20, ForeColor = Color.Gray, AutoSize = true };
-
-                var btn = new Button
-                {
-                    Text = "打开所在文件夹",
-                    Size = new Size(130, 35),
-                    Location = new Point(650, 18),
-                    FlatStyle = FlatStyle.Flat,
-                    BackColor = Color.FromArgb(240, 240, 240),
-                    Cursor = Cursors.Hand
+                // --- 核心修复：文字自动换行且不越界 ---
+                var title = new Label { 
+                    Text = f.Title, 
+                    Top = 15, Left = 20, 
+                    AutoSize = true, 
+                    MaximumSize = new Size(600, 0), // 限定最大宽度 600，超过自动换行！
+                    Font = new Font("微软雅黑", 11, FontStyle.Bold) 
                 };
                 
-                btn.Click += (s, e) => 
-                {
-                    try
+                var time = new Label { Text = f.DownloadTime.ToString("yyyy-MM-dd HH:mm") + $"  |  大小: {f.FileSize}", Top = 60, Left = 20, ForeColor = Color.Gray, AutoSize = true };
+
+                var btnOpen = new Button { Text = "打开目录", Size = new Size(100, 35), Location = new Point(650, 25), FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(240, 240, 240), Cursor = Cursors.Hand };
+                btnOpen.Click += (s, e) => System.Diagnostics.Process.Start("explorer.exe", "/select,\"" + f.LocalPath + "\"");
+
+                // --- 新增：删除按钮 ---
+                var btnDel = new Button { Text = "删除", Size = new Size(80, 35), Location = new Point(770, 25), FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(231, 76, 60), ForeColor = Color.White, Cursor = Cursors.Hand };
+                btnDel.Click += (s, e) => {
+                    if (MessageBox.Show("确定要从数据库和硬盘彻底删除该文件吗？", "警告", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
                     {
-                        System.Diagnostics.Process.Start("explorer.exe", "/select,\"" + f.LocalPath + "\"");
-                    }
-                    catch (Exception ex)
-                    {
-                        MessageBox.Show("找不到文件或目录: " + ex.Message);
+                        new FileDbService().DeleteFile(f.Id);
+                        if (File.Exists(f.LocalPath)) File.Delete(f.LocalPath); // 同时删除物理硬盘文件
+                        LoadData(); // 重新加载界面
                     }
                 };
 
-                p.Controls.Add(title);
-                p.Controls.Add(time);
-                p.Controls.Add(btn);
+                p.Controls.Add(title); p.Controls.Add(time); p.Controls.Add(btnOpen); p.Controls.Add(btnDel);
                 _list.Controls.Add(p);
             }
 
+            if (files.Count == 0) _list.Controls.Add(new Label { Text = "该库空空如也~", AutoSize = true, Font = new Font("微软雅黑", 12), ForeColor = Color.Gray });
+
             _list.ResumeLayout(true);
-            
-            _list.AutoScrollPosition = new Point(0, 0);
-
-
-            _lblPageInfo.Text = $"第 {_currentPage} 页";
-            UpdatePagerLayout(_btnPrev.Parent);
-
-            _btnPrev.Enabled = _currentPage > 1;
-            _btnPrev.BackColor = _btnPrev.Enabled ? Color.White : Color.FromArgb(240, 240, 240);
-
-            _btnNext.Enabled = files.Count == PageSize;
-            _btnNext.BackColor = _btnNext.Enabled ? Color.White : Color.FromArgb(240, 240, 240);
-
-            if (_currentPage == 1 && files.Count == 0)
-            {
-                _lblPageInfo.Text = "暂无归档";
-                var emptyLabel = new Label { Text = "本地数据库空空如也~ 快去爬取一些资源吧！", AutoSize = true, Font = new Font("微软雅黑", 12), ForeColor = Color.Gray, Margin = new Padding(20) };
-                _list.Controls.Add(emptyLabel);
-                UpdatePagerLayout(_btnPrev.Parent);
-            }
         }
     }
 }

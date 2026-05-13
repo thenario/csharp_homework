@@ -1,54 +1,44 @@
-using System;
-using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
-using PuppeteerSharp;
-using Crawler.Core;
+// using System;
+// using System.IO;
+// using System.Net.Http;
+// using System.Threading.Tasks;
 
-namespace Crawler.Engines
-{
-    public class ImageEngine : ICrawlEngine
-    {
-        public async Task<string> StartAsync(string url, string savePath, IProgress<ProgressInfo> progress, CancellationToken token)
-        {
-            progress.Report(new ProgressInfo(20, "-", "正在启动无头浏览器强穿防盗链..."));
+// namespace Crawler.Engines
+// {
+//     public class ImageEngine
+//     {
+//         // 核心修改：直接返回内存字节流和真实后缀！不再写入硬盘！
+//         public async Task<(byte[] Bytes, string Extension)> FetchImageAsync(string imageUrl, string refererUrl)
+//         {
+//             using var client = new HttpClient();
+//             // 伪装浏览器请求头
+//             client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+//             client.DefaultRequestHeaders.Add("Accept", "image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8");
+            
+//             // 【核心破盾】：带上原网页的网址作为 Referer，解决 99% 的图片防盗链！
+//             if (!string.IsNullOrEmpty(refererUrl))
+//                 client.DefaultRequestHeaders.Add("Referer", refererUrl);
 
-            var browserFetcher = new BrowserFetcher();
-            await browserFetcher.DownloadAsync();
+//             using var response = await client.GetAsync(imageUrl, HttpCompletionOption.ResponseHeadersRead);
+//             response.EnsureSuccessStatusCode();
 
-            using var browser = await Puppeteer.LaunchAsync(new LaunchOptions { Headless = true, UserDataDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "BrowserData") });
-            using var page = await browser.NewPageAsync();
+//             var contentType = response.Content.Headers.ContentType?.MediaType?.ToLower() ?? "";
+//             if (contentType.StartsWith("text/"))
+//                 throw new Exception("服务器拒绝了图片请求，返回了验证码或报错网页。");
 
-            await page.EvaluateFunctionOnNewDocumentAsync(@"() => { Object.defineProperty(navigator, 'webdriver', { get: () => undefined }); }");
-            await page.SetUserAgentAsync("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+//             // 动态验证并修正后缀
+//             string trueExt = ".jpg";
+//             if (contentType.Contains("webp")) trueExt = ".webp";
+//             else if (contentType.Contains("png")) trueExt = ".png";
+//             else if (contentType.Contains("gif")) trueExt = ".gif";
+//             else if (contentType.Contains("svg")) trueExt = ".svg";
 
-            progress.Report(new ProgressInfo(50, "-", "正在获取真实图片数据..."));
-            var response = await page.GoToAsync(url, new NavigationOptions { WaitUntil = new[] { WaitUntilNavigation.Networkidle2 } });
+//             // 直接将图片下载到内存中
+//             byte[] imageBytes = await response.Content.ReadAsByteArrayAsync();
+//             if (imageBytes == null || imageBytes.Length == 0)
+//                 throw new Exception("获取到了0字节的空图片。");
 
-            if (!response.Ok)
-                throw new Exception($"图片下载失败：服务器拒绝访问 (HTTP {response.Status})，可能是高级防盗链。");
-
-            byte[] imageBytes = await response.BufferAsync();
-            if (imageBytes == null || imageBytes.Length == 0)
-                throw new Exception("下载失败：获取到了空文件，图片可能已失效。");
-
-            var contentType = response.Headers.ContainsKey("content-type") ? response.Headers["content-type"].ToLower() : "";
-            string trueExt = Path.GetExtension(savePath);
-            if (contentType.Contains("webp")) trueExt = ".webp";
-            else if (contentType.Contains("png")) trueExt = ".png";
-            else if (contentType.Contains("gif")) trueExt = ".gif";
-            else if (contentType.Contains("svg")) trueExt = ".svg";
-            else if (contentType.Contains("jpeg") || contentType.Contains("jpg")) trueExt = ".jpg";
-
-            string dir = Path.GetDirectoryName(savePath);
-            string name = Path.GetFileNameWithoutExtension(savePath);
-            string finalSavePath = Path.Combine(dir, name + trueExt);
-
-            progress.Report(new ProgressInfo(80, "-", $"格式识别为 {trueExt}，正在写入硬盘..."));
-            await File.WriteAllBytesAsync(finalSavePath, imageBytes, token);
-
-            progress.Report(new ProgressInfo(100, "-", "图片下载完成"));
-            return finalSavePath;
-        }
-    }
-}
+//             return (imageBytes, trueExt);
+//         }
+//     }
+// }
