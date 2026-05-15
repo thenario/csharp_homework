@@ -1,3 +1,5 @@
+//已修改，在v4不需要这个文件，但为了结构的完整还是保留了这个
+
 // using System;
 // using System.IO;
 // using System.Net.Http;

@@ -1,42 +1,44 @@
 using System;
-using System.Drawing;
-using System.Windows.Forms;
+using System.Drawing;//图形与图像处理的包，设置颜色，尺寸，坐标
+using System.Security.Cryptography.X509Certificates;
+using System.Windows.Forms;//各种桌面应用程序组件的包
 
 namespace Crawler.Views 
 {
-    public class Home : UserControl 
+    public class Home : UserControl //winforms.usercontorl，因为该view是作为mainwindow的组件，所以用usercontrol
     {
         public void InitUi() 
         {
-            this.Controls.Clear();
-            this.BackColor = Color.FromArgb(245, 247, 250);
-            this.Padding = new Padding(40);
-
+            this.Controls.Clear();//先清空组件内容
+            this.BackColor = Color.FromArgb(245, 247, 250);//修改背景颜色
+            this.Padding = new Padding(40);//设置内边距
+            //创建一个头部panel
+            //top属性设置panel停靠在顶部
             var headerPanel = new Panel { Dock = DockStyle.Top, Height = 130 };
             
             var lblWelcome = new Label {
-                Text = "欢迎使用 全能媒体引擎",
-                Font = new Font("微软雅黑", 26, FontStyle.Bold),
-                ForeColor = Color.FromArgb(44, 62, 80),
-                AutoSize = true,
-                Location = new Point(0, 0)
+                Text = "欢迎使用 全能媒体引擎",//label的文本内容
+                Font = new Font("微软雅黑", 26, FontStyle.Bold),//字体，大小，样式
+                ForeColor = Color.FromArgb(44, 62, 80),//前景颜色，即文字的颜色
+                AutoSize = true,//按照内容自动撑开
+                Location = new Point(0, 0)//设置坐标，左上角
             };
 
-            var lblDesc = new Label {
+            var lblDesc = new Label {//依旧label
                 Text = "这是一款基于原生 WinForms 打造的现代化爬虫管理系统。\n底层融合了无头浏览器、AI 正文智能识别及防盗链穿透技术，为您提供所见即所得的极客级抓取体验。\n\n👈 请从左侧导航菜单选择您需要的功能模块开始操作。",
                 Font = new Font("微软雅黑", 11),
                 ForeColor = Color.DimGray,
                 AutoSize = true,
                 Location = new Point(5, 55)
             };
-
+            //将组件添加到创建的panel里去
             headerPanel.Controls.Add(lblWelcome);
             headerPanel.Controls.Add(lblDesc);
 
-            var cardContainer = new FlowLayoutPanel {
-                Dock = DockStyle.Fill,
-                AutoScroll = true,
-                Padding = new Padding(0, 20, 0, 0)
+            var cardContainer = new FlowLayoutPanel {//流式排布，自动布局
+                Dock = DockStyle.Fill,//填充剩余空间
+                AutoScroll = true,//当内容超出父组件范围时，显示滚轮以滑动
+                Padding = new Padding(0, 20, 0, 0)//内边距，左上右下的顺时针
             };
 
             cardContainer.Controls.Add(CreateInfoCard(
@@ -63,22 +65,26 @@ namespace Crawler.Views
                 Color.FromArgb(241, 196, 15)
             ));
 
-            // 注意 Dock 的添加顺序，先 Fill 再 Top
+            //先Fill 再Top，引擎会从底层开始渲染
             this.Controls.Add(cardContainer);
             this.Controls.Add(headerPanel);
         }
 
-        // --- 生成说明卡片的方法 ---
+        //生成说明卡片的方法
         private Panel CreateInfoCard(string title, string desc, Color themeColor) 
         {
             var card = new Panel { 
-                Size = new Size(450, 160), // 卡片改宽一点，适合放介绍文字
-                BackColor = Color.White, 
-                Margin = new Padding(0, 0, 30, 30) // 右侧和下侧留白
+                Size = new Size(450, 160),//大小,先宽再高
+                BackColor = Color.White,//背景颜色
+                Margin = new Padding(0, 0, 30, 30)//右侧和下侧留白
             };
 
-            // 绘制卡片淡淡的灰色边框
-            card.Paint += (s, e) => {
+            //绘制卡片淡淡的灰色边框
+            card.Paint += (s, e) => {//当card重绘时触发
+                //e.Graphics表示画布引擎
+                //card.ClientRectangle绘制区域，即以组件左上角为顶点的大小和组件一样的矩形
+                //Color.FromArgb(230, 230, 230)边框颜色
+                //ButtonBorderStyle.Solid边框线条样式，即实线样式
                 ControlPaint.DrawBorder(e.Graphics, card.ClientRectangle, Color.FromArgb(230, 230, 230), ButtonBorderStyle.Solid);
             };
 
@@ -90,17 +96,14 @@ namespace Crawler.Views
                 Text = title, 
                 Font = new Font("微软雅黑", 14, FontStyle.Bold), 
                 ForeColor = Color.FromArgb(44, 62, 80), 
-                Top = 25,
-                Left = 30, 
+                Location = new Point(30,25),
                 AutoSize = true
             };
 
             var lblDesc = new Label { 
                 Text = desc, 
-                Top = 70,
-                Left = 30, 
-                Width = 390, 
-                Height = 80, 
+                Location = new Point(30,70),
+                Size = new Size(390,80),
                 ForeColor = Color.DimGray,
                 Font = new Font("微软雅黑", 10)
             };
